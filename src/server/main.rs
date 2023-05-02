@@ -1,9 +1,9 @@
-use std::io::{BufRead, BufReader, Result, Write};
+use std::io::{BufRead, BufReader, Result};
 use std::net::{TcpListener, TcpStream};
 use std::thread;
 use libirc::commands::{CommandFactory, DefaultCommandFactory};
 
-fn handle_client(mut stream: TcpStream) -> Result<()> {
+fn handle_client(stream: TcpStream) -> Result<()> {
     // Set up a buffer to read lines of text from the client
     let mut reader = 
         BufReader::new(stream.try_clone().unwrap());

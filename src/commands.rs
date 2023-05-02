@@ -23,8 +23,14 @@ impl IrcCommand for NickCommand {
         ":No nickname given")?;
       return Ok(());
     }
-    self.reply(stream, Numerics::RPL_WELCOME, 
-      format!(":Welcome to the <networkname> Network, {nickname}[!<user>@<host>]").as_str())?;
+    let network_name = "Hype";
+    let user = "Nikolay";
+    let host = "Home";
+    let mut reply_parameters = format!(":Welcome to the {network_name} Network, {nickname}");
+    if !user.is_empty() && !host.is_empty() {
+      reply_parameters += format!("!{user}@{host}").as_str();
+    }
+    self.reply(stream, Numerics::RPL_WELCOME, reply_parameters.as_str())?;
     Ok(())
   }
 }
@@ -33,7 +39,7 @@ pub struct JoinCommand {
 }
 
 impl IrcCommand for JoinCommand {
-  fn parse(&self, stream: &TcpStream, args: &str) -> Result<()> {
+  fn parse(&self, stream: &TcpStream, parameters: &str) -> Result<()> {
       Ok(())
   }
 }
