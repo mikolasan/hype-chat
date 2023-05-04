@@ -1,72 +1,110 @@
-use std::io::{self, prelude::*, BufReader};
-use std::net::TcpStream;
+use std::io;
 use std::thread;
 use std::time::Duration;
-use libirc::messages::{IrcMessage, NickMessage};
+use tokio::io::AsyncWrite;
+use tokio::net::TcpStream;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader, BufWriter};
+use tokio_util::sync::CancellationToken;
 
-fn send_message(mut stream: &TcpStream, message: Box<dyn IrcMessage>) -> io::Result<()> {
+use libirc::messages::{EmptyMessage, IrcMessage, NickMessage, PrivateMessage, UserMessage};
+
+async fn send_message<S: AsyncWrite + std::marker::Unpin>(writer: &mut BufWriter<S>, message: Box<dyn IrcMessage>) -> io::Result<()> {
     let assembled = message.assembly();
-    stream.write_all(assembled.as_bytes())
+    writer.write_all(assembled.as_bytes()).await
 }
 
-fn handle_server(mut stream: TcpStream) -> io::Result<()> {
-    let mut reader = BufReader::new(stream.try_clone()?);
+async fn handle_server(stream: TcpStream) -> io::Result<()> {
+    let (read, mut write) = tokio::io::split(stream);
+    let mut reader = BufReader::new(read);
+    // let mut writer = BufWriter::new(write);
 
-    let nick_message = Box::new(NickMessage {
-        nick: "mikolasan".to_string(),
+    // Step 1: Create a new CancellationToken
+    let token = CancellationToken::new();
+    // Step 2: Clone the token for use in another task
+    let cloned_token = token.clone();
+
+    let read_handle = tokio::spawn(async move {
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line).await {
+                Ok(bytes_read) => {
+                    if bytes_read == 0 {
+                        println!("Server closed the connection");
+                        break;
+                    } else {
+                        println!("Received: {}", line);
+                    }
+                },
+                Err(e) => {
+                    println!("Error reading from socket: {:?}", e);
+                    token.cancel();
+                    break;
+                }
+            }
+        }
     });
-    send_message(&stream, nick_message)?;
 
-    // // // Read and print the server's response to the NICK command
-    // // let mut response = String::new();
-    // // reader.read_line(&mut response)?;
-    // // println!("{}", response.trim());
+    // Construct a local task set that can run `!Send` futures.
+    let local = tokio::task::LocalSet::new();
+    // Run the local task set.
+    local.run_until(async move {
+        // Send messages to the server
+        let mut input = String::new();
+        // Get tokio's version of stdin, which implements AsyncRead
+        let stdin = tokio::io::stdin();
+        // Create a buffered wrapper, which implements BufRead
+        let mut stdin_reader = BufReader::new(stdin);
+        tokio::select! {
+            // Step 3: Using cloned token to listen to cancellation requests
+            _ = cloned_token.cancelled() => {
+                println!("The token was cancelled, task can shut down");
+            }
+            _ = async {
+                loop {
+                    stdin_reader.read_line(&mut input).await.unwrap();
+                    let message: Box<dyn IrcMessage> = match input.trim() {
+                        "NICK" => Box::new(NickMessage {
+                            nick: "mikolasan".to_string(),
+                        }),
+                        "USER" => Box::new(UserMessage {
+                            nick: "mikolasan".to_string(),
+                            real_name: "Nikolay Neupokoev".to_string(),
+                        }),
+                        "PRIVMSG" => Box::new(PrivateMessage {
+                            target: "admin".to_string(),
+                            message: "well hello".to_string(),
+                        }),
+                        &_ => {
+                            println!("Unknown command :(");
+                            Box::new(EmptyMessage {})
+                        }
+                    };
+                    input.clear();
 
-    // // Send a USER command to the server
-    // let user = "mikolasan";
-    // let real_name = "Nikolay Neupokoev 🦣";
-    // let user_command = format!("USER {} 0 * :{}\r\n", user, real_name);
-    // stream.write_all(user_command.as_bytes())?;
+                    // `spawn_local` ensures that the future is spawned on the local task set.
+                    // tokio::task::spawn_local(async move {
+                    //     println!("{}", unsend_data);
+                    //     // ...
+                    // }).await.unwrap();
+                    // send_message(&mut writer, message).await?;
+                    let assembled = message.assembly();
+                    println!("Sending message '{}'", assembled.trim_end());
+                    write.write_all(assembled.as_bytes()).await.unwrap();
+                }
+            } => {}
+        }
+    }).await;
 
-    // // Read and print the server's response to the USER command
-    // response.clear();
-    // reader.read_line(&mut response)?;
-    // println!("{}", response.trim());
-
-    // // Send a message to a channel
-    // let channel = "#general";
-    // let message = "Hello, world!";
-    // let privmsg_command = format!("PRIVMSG {} :{}\r\n", channel, message);
-    // stream.write_all(privmsg_command.as_bytes())?;
-
-    let mut response = String::new();
-    let mut input = String::new();
-    loop {
-        // input.clear();
-        // io::stdin().read_line(&mut input)?;
-        // let trimmed_input = input.trim();
-        // if trimmed_input == "quit" {
-        //     break
-        // }
-
-        // // Send the input to the server
-        // writeln!(stream, "{}", trimmed_input)?;
-
-        // Wait for a response from the server
-        response.clear();
-        reader.read_line(&mut response)?;
-        println!("{}", response.trim());
-    }
-
-    Ok(())
+    Ok(())  
 }
 
-fn main() -> io::Result<()> {
+#[tokio::main]
+async fn main() -> io::Result<()> {
     loop {
-        let connect_result = TcpStream::connect("127.0.0.1:6667");
-        if let Ok(stream) = connect_result {
+        if let Ok(stream) = TcpStream::connect("127.0.0.1:6667").await {
             println!("Connected to the server!");
-            if let Err(error) = handle_server(stream) {
+
+            if let Err(error) = handle_server(stream).await {
                 println!("Client error: {error}");
             }
         } else {

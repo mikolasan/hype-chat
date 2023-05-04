@@ -6,8 +6,8 @@ use crate::numerics::Numerics;
 // House of message parsing
 
 pub trait IrcCommand {
-  fn parse(&self, stream: &TcpStream, parameters: &str) -> Result<()>;
-  fn reply(&self, mut stream: &TcpStream, numeric: Numerics, parameters: &str) -> Result<()> {
+  fn parse(&self, stream: & TcpStream, parameters: &str) -> Result<()>;
+  fn reply(&self, mut stream: & TcpStream, numeric: Numerics, parameters: &str) -> Result<()> {
     write!(stream, "{:0>3} <client> {parameters}\r\n", numeric as i32)
   }
 }
@@ -39,7 +39,7 @@ pub struct JoinCommand {
 }
 
 impl IrcCommand for JoinCommand {
-  fn parse(&self, stream: &TcpStream, parameters: &str) -> Result<()> {
+  fn parse(&self, _stream: &TcpStream, _parameters: &str) -> Result<()> {
       Ok(())
   }
 }
