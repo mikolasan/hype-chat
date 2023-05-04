@@ -5,33 +5,21 @@ use libirc::commands::{CommandFactory, DefaultCommandFactory};
 
 fn handle_client(mut stream: &TcpStream) -> Result<()> {
     // Set up a buffer to read lines of text from the client
-    let mut reader = 
-        BufReader::new(stream);
+    let mut reader = BufReader::new(stream);
 
     let factory = DefaultCommandFactory {};
 
     // Process commands from the client
     loop {
         let mut line = String::new();
-        // or read by chunks
-        let mut data = [0 as u8; 1024];
-        match stream.read(&mut data) {
-        //     Ok(size) => {
-        //         let message = String::from_utf8_lossy(&data[0..size]).trim_end().to_string();
-        //     },
-        //     Err(e) => {
-        //         println!("Error reading from socket: {:?}", e);
-        //         break;
-        //     }
-        // }
-        
-        //match reader.read_line(&mut line) {
+      
+        match reader.read_line(&mut line) {
             Ok(bytes_read) => {
                 if bytes_read == 0 {
                     println!("Client closed the connection");
                     break;
                 } else {
-                    let line = String::from_utf8_lossy(&data[0..bytes_read]).trim_end().to_string();
+                    // let line = String::from_utf8_lossy(&data[0..bytes_read]).trim_end().to_string();
                     println!("Received command: {}", line.trim());
 
                     let mut parts = line.splitn(2, ' ');
@@ -49,7 +37,6 @@ fn handle_client(mut stream: &TcpStream) -> Result<()> {
                 break;
             }
         }
-        
     }
     Ok(())
 }
