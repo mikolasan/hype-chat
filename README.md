@@ -12,10 +12,12 @@ Many hype features will be implemented first, even before core functionalities â
 
 ## Roadmap
 
+- End-to-end encryption with [Off-the-record messaging](https://en.wikipedia.org/wiki/Off-the-record_messaging).
+- WebID authentication. DM communication stored in a Solid Pod
 - Personalization: color schemes, user profile, content recommendation and filtering
 - Video and audio calls
 - Integration with third-party services: sharing files via google drive or dropbox, adding gifs to messages, displaying what is currently playing in your playlist
-- Encryption of data. The highest level is when the user manually selects who can read their messages by sending decryption key, but then can revoke keys and change encryption and thus making all data hidden again.
+- The highest encryption level. User can manually select who can read their messages by sending decryption key, but then can revoke keys and change encryption and thus making all data hidden again.
 - Runs on desktop and mobile
 - Easy to develop new plugins: another integrations, another protocols, UI extensions
 - Blogging platform
