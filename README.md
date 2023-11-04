@@ -22,6 +22,7 @@ Many hype features will be implemented first, even before core functionalities â
 - Easy to develop new plugins: another integrations, another protocols, UI extensions
 - Blogging platform
 - Podcast platform
+- Other features from [Friendica](https://friendi.ca/): integration with RSS, email, expiring content
 - ...
 
 
